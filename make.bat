@@ -1,0 +1,1 @@
+pyinstaller -F -i ./rose-48.ico -p C:\Users\user\AppData\Local\Programs\Python\Python36-32\Lib\site-packages ./magic_button_2.py

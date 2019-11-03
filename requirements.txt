@@ -1,0 +1,10 @@
+xlwt
+pandas_ods_reader
+pandas
+copy
+matplotlib
+seaborn
+python-docx
+scipy
+pyfiglet
+statsmodels

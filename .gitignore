@@ -1,0 +1,11 @@
+build
+dist
+input*
+__pycache__
+.idea
+output
+*.exe
+*.spec
+*.xls
+*.7z
+
