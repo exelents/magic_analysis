@@ -12,7 +12,10 @@ p_file_output_total = "TOTAL.xls"
 
 p_final_report = "report.docx"
 p_errors_log = "errors.txt"
+p_data_highlights = "DATA_HIGHLIGHTS"
 p_final_report = os.path.join(p_output, p_final_report)
+p_data_highlights = os.path.join(p_output, p_data_highlights)
+os.makedirs(p_data_highlights, exist_ok=True)
 
 p_img_dir = "img"
 p_img_dir = os.path.join(p_output, p_img_dir)

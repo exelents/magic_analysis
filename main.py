@@ -1,12 +1,4 @@
-from pandas_ods_reader import read_ods
-import pandas as pd
-import numpy as np
-import matplotlib
-matplotlib.use('TkAgg')
-from matplotlib import pyplot as plt
-import seaborn as sns; sns.set()
-import scipy.stats as stats
-import statsmodels.api as sm
+
 
 import os
 import datetime
@@ -16,6 +8,7 @@ from pprint import pprint
 
 import params as p
 import helpers as h
+import analysis as a
 
 
 date_trial = datetime.date(2019, 11, 30)
@@ -59,7 +52,7 @@ def process_input(dir_input:str):
     rd = []
     for d in dirs:
         check_dir = os.path.join(dir_input, d)
-        data = process_samples(check_dir, analyze_data_normality)
+        data = process_samples(check_dir, a.analyze_data_normality)
         print("\n")
         rd.append({
             'sample': d,
@@ -95,7 +88,7 @@ def process_input(dir_input:str):
             check_dir1 = os.path.join(dir_input, d1)
             check_dir2 = os.path.join(dir_input, d2)
             data = process_samples_pair(check_dir1, check_dir2,
-                                        analyze_data_compare,
+                                        a.analyze_data_compare,
                                         normal_samples_paths=normal_samples_paths,
                                         sample1=d1, sample2=d2)
             rd.append({
@@ -179,104 +172,6 @@ def process_samples(dir_input:str, func, **kwargs):
             rc.extend(rc_s)
 
     return rc
-
-def analyze_data_normality(df, **kwargs):
-
-    all_obj_reports = []
-    for n_obj in p.n_objects_to_analysis:
-        report_object = {}
-        dfo1 = df[df[p.n_objtype] == n_obj]
-
-        report_object['object'] = n_obj
-        report_object['count'] = len(dfo1)
-        # f_threshold_value
-        # p_img_dir
-
-        data1 = pd.to_numeric(dfo1[p.n_value], errors='raise')
-
-        # визуализация данных
-        vis_file = h.get_new_filename(p.p_img_dir)
-        plt.hist(data1, 50)
-        plt.savefig(vis_file, dpi=200)
-        report_object['grafic'] = vis_file
-        plt.clf()
-
-        # проверка на нормальность
-        normal = {'shapiro': {}, 'anderson': {}}
-
-        statistic, pval = stats.shapiro(data1)
-        normal['shapiro']['pvalue'] = pval
-        normal['shapiro']['statistic'] = statistic
-        normal['shapiro']['status'] = bool(pval > p.f_threshold_value)
-
-        statistic, pval = sm.stats.normal_ad(data1)
-        normal['anderson']['pvalue'] = pval
-        normal['anderson']['statistic'] = statistic
-        normal['anderson']['status'] = bool(pval > p.f_threshold_value)
-
-        report_object['normal'] = normal
-
-        all_obj_reports.append(report_object)
-
-    return all_obj_reports
-
-
-def fisher_criterion(v1, v2):
-    return abs(np.mean(v1) - np.mean(v2)) / (np.var(v1) + np.var(v2))
-
-def analyze_data_compare(df1, df2, **kwargs):
-    #print(kwargs['normal_samples_paths'])
-
-    all_obj_reports = []
-    for n_obj in p.n_objects_to_analysis:
-
-        report_object = {}
-        dfo1 = df1[df1[p.n_objtype] == n_obj]
-        dfo2 = df2[df2[p.n_objtype] == n_obj]
-
-        report_object['object'] = n_obj
-        report_object['count1'] = len(dfo1)
-        report_object['count2'] = len(dfo2)
-        # f_threshold_value
-        # p_img_dir
-
-        data1 = pd.to_numeric(dfo1[p.n_value], errors='raise')
-        data2 = pd.to_numeric(dfo2[p.n_value], errors='raise')
-
-        # визуализация данных
-        vis_file = h.get_new_filename(p.p_img_dir)
-        plt.style.use('classic')
-        plt.style.use('seaborn-whitegrid')
-        sns.distplot(data1, label=kwargs['sample1'])
-        sns.distplot(data2, label=kwargs['sample2'])
-        plt.legend()
-        plt.savefig(vis_file, dpi=200)
-        report_object['grafic'] = vis_file
-        plt.clf()
-
-        if os.path.normpath(kwargs['path1']) not in kwargs['normal_samples_paths'][n_obj] or \
-                os.path.normpath(kwargs['path2']) not in kwargs['normal_samples_paths'][n_obj]:
-            print("Сравнение выборок не являющихся нормальными! Тест отклонён.")
-            all_obj_reports.append(report_object)
-            continue
-
-        #сравнение выборок по среднему
-        report_object['meantest'] = {'student': {}, 'mannweatney':{}}
-
-        statistic, pvalue = stats.ttest_ind(data1, data2)
-        report_object['meantest']['student']['pvalue'] = pvalue
-        report_object['meantest']['student']['statistic'] = statistic
-        report_object['meantest']['student']['status'] = bool(pvalue > p.f_threshold_value)
-
-        statistic, pvalue = stats.mannwhitneyu(data1, data2)
-        report_object['meantest']['mannweatney']['pvalue'] = pvalue
-        report_object['meantest']['mannweatney']['statistic'] = statistic
-        report_object['meantest']['mannweatney']['status'] = bool(pvalue > p.f_threshold_value)
-
-
-        all_obj_reports.append(report_object)
-
-    return all_obj_reports
 
 if __name__ == '__main__':
     import pyfiglet

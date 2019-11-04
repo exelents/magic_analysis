@@ -10,6 +10,7 @@ import json
 import numpy as np
 
 import params as p
+import analysis as a
 
 def shorten_sample_path(inpath):
     path = inpath
@@ -284,27 +285,37 @@ def load_dataframe_from_folder(dir):
         #print(f"Обработка файла {in_filepath}")
 
         try:
-            df = read_ods(in_filepath, p.sheet_name)
-            df = df[df[p.n_objtype].isin(p.n_objects_to_analysis)]
+            df_orig = read_ods(in_filepath, p.sheet_name)
+            df = df_orig[df_orig[p.n_objtype].isin(p.n_objects_to_analysis)]
 
+            # проверка данных на логическую структуру
             currow = None
             max_nucleori = 0
             flag_first_nucleos = True
             prew_cytoplasm = None
+            error_idx = {
+                'no_nucleos': [],
+                'no_nucleori': [],
+                'additional_nucleos': [],
+                'nan': []
+            }
 
             for index, row in df.iterrows():
                 if row[p.n_objtype] == p.n_cytoplasm:
                     if currow is not None:
                         if currow[1] is None:
                             p.logger.warning(f"[{in_filepath}] Цитоплазма без ядер! Строка [{prew_cytoplasm+2}]")
+                            error_idx['no_nucleos'].append(prew_cytoplasm)
                         elif len(currow[2]) == 0:
                             p.logger.warning(f"[{in_filepath}] Клетка без ядрышек! Строка [{prew_cytoplasm+2}]")
+                            error_idx['no_nucleori'].append(prew_cytoplasm)
 
                     currow = [None, None, []]
                     try:
                         currow[0] = float(row[p.n_value])
                     except ValueError:
                         p.logger.warning(f"[{in_filepath}] Нечисловое значение в цитоплазме! Строка [{index + 2}]")
+                        error_idx['nan'].append(index+2)
 
                     curr_nucleori = 0
                     flag_first_nucleos = True
@@ -316,23 +327,51 @@ def load_dataframe_from_folder(dir):
                             currow[1] = float(row[p.n_value])
                         except ValueError:
                             p.logger.warning(f"[{in_filepath}] Нечисловое значение ядра! Строка [{index + 2}]")
+                            error_idx['nan'].append(index)
                         flag_first_nucleos = False
                     else:
                         p.logger.warning(f"[{in_filepath}] Второе ядро в клетке! Строка [{index+2}]")
+                        error_idx['additional_nucleos'].append(index)
 
                 elif row[p.n_objtype] == p.n_nucleori:
                     try:
                         currow[2].append(float(row[p.n_value]))
                     except ValueError:
                         p.logger.warning(f"[{in_filepath}] Нечисловое значение ядрышка! Строка [{index + 2}]")
+                        error_idx['nan'].append(index)
                     curr_nucleori += 1
                     if max_nucleori < curr_nucleori:
                         max_nucleori = curr_nucleori
-            # проверка данных
 
-
-            df[p.n_value] = df[p.n_value].astype('float64')
-            data.append(df)
+            # # ====
+            # # проверка данных на выбросы
+            #
+            # df_orig['chauvenet'] = ''
+            # for obj in p.n_objects_to_analysis:
+            #     df_err = df_orig[df_orig[p.n_objtype] == obj]
+            #     data_err = pd.to_numeric(df_err[p.n_value], errors='raise')
+            #     testres = a.chauvenet(data_err)
+            #     df_orig.loc[testres[testres==True].index, 'chauvenet'] = 'F'
+            #
+            # # выставим значения ошибки структуры
+            # df_orig['data_structure'] = ''
+            # df_orig.loc[error_idx['nan'], 'data_structure'] = 'НЕ ЧИСЛО'
+            # df_orig.loc[error_idx['no_nucleos'], 'data_structure'] += 'нет ядра'
+            # df_orig.loc[error_idx['no_nucleori'], 'data_structure'] += 'нет ядрышек'
+            # df_orig.loc[error_idx['additional_nucleos'], 'data_structure'] += 'лишнее ядро'
+            #
+            # #====
+            # # сохранить подсвеченые данные
+            # outerr_filepath = os.path.relpath(dir)
+            # outerr_filepath = os.path.join(p.p_data_highlights, outerr_filepath)
+            # os.makedirs(outerr_filepath, exist_ok=True)
+            # outerr_filename = os.path.splitext(in_file)[0] + '.xls'
+            # outerr_filename = os.path.join(outerr_filepath, outerr_filename)
+            # df_orig.index = df_orig.index+2
+            # df_orig.to_excel(outerr_filename, sheet_name=p.sheet_name)
+            # #====
+            # df[p.n_value] = df[p.n_value].astype('float64')
+            # data.append(df)
         except ValueError as ex:
             print("ВНИМАНИЕ! Ошибка при обработке файла! "
                   "В значениях содержатся нечисловые значения!")
@@ -342,6 +381,7 @@ def load_dataframe_from_folder(dir):
             print("ВНИМАНИЕ! Ошибка при обработке файла!")
             print("file name = " + in_filepath)
             ##print(ex)
+            raise
             quit(1)
 
 
