@@ -1,4 +1,5 @@
 import os
+import logging
 
 #constants
 sheet_name = "Source"
@@ -10,6 +11,7 @@ os.makedirs(p_output, exist_ok=True)
 p_file_output_total = "TOTAL.xls"
 
 p_final_report = "report.docx"
+p_errors_log = "errors.txt"
 p_final_report = os.path.join(p_output, p_final_report)
 
 p_img_dir = "img"
@@ -27,3 +29,19 @@ n_value = "Значение"
 
 i_rounddig = 4
 f_threshold_value = 0.05  # порог проверки на нормальность и для теста стьюдента
+
+# эвристика для детекта возможных ядрышек записаных в ядра
+f_nucleori_max_size = 14.7
+
+
+#еггог logger
+__logfile = os.path.join(p_output, p_errors_log)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# file log
+fl = logging.FileHandler(__logfile, encoding='utf-8')
+fl.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(message)s')
+fl.setFormatter(formatter)
+logger.addHandler(fl)

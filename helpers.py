@@ -286,7 +286,51 @@ def load_dataframe_from_folder(dir):
         try:
             df = read_ods(in_filepath, p.sheet_name)
             df = df[df[p.n_objtype].isin(p.n_objects_to_analysis)]
+
+            currow = None
+            max_nucleori = 0
+            flag_first_nucleos = True
+            prew_cytoplasm = None
+
+            for index, row in df.iterrows():
+                if row[p.n_objtype] == p.n_cytoplasm:
+                    if currow is not None:
+                        if currow[1] is None:
+                            p.logger.warning(f"[{in_filepath}] Цитоплазма без ядер! Строка [{prew_cytoplasm+2}]")
+                        elif len(currow[2]) == 0:
+                            p.logger.warning(f"[{in_filepath}] Клетка без ядрышек! Строка [{prew_cytoplasm+2}]")
+
+                    currow = [None, None, []]
+                    try:
+                        currow[0] = float(row[p.n_value])
+                    except ValueError:
+                        p.logger.warning(f"[{in_filepath}] Нечисловое значение в цитоплазме! Строка [{index + 2}]")
+
+                    curr_nucleori = 0
+                    flag_first_nucleos = True
+                    prew_cytoplasm = index
+
+                elif row[p.n_objtype] == p.n_nucleos:
+                    if flag_first_nucleos:
+                        try:
+                            currow[1] = float(row[p.n_value])
+                        except ValueError:
+                            p.logger.warning(f"[{in_filepath}] Нечисловое значение ядра! Строка [{index + 2}]")
+                        flag_first_nucleos = False
+                    else:
+                        p.logger.warning(f"[{in_filepath}] Второе ядро в клетке! Строка [{index+2}]")
+
+                elif row[p.n_objtype] == p.n_nucleori:
+                    try:
+                        currow[2].append(float(row[p.n_value]))
+                    except ValueError:
+                        p.logger.warning(f"[{in_filepath}] Нечисловое значение ядрышка! Строка [{index + 2}]")
+                    curr_nucleori += 1
+                    if max_nucleori < curr_nucleori:
+                        max_nucleori = curr_nucleori
             # проверка данных
+
+
             df[p.n_value] = df[p.n_value].astype('float64')
             data.append(df)
         except ValueError as ex:
