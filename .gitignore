@@ -5,7 +5,6 @@ __pycache__
 .idea
 output
 *.exe
-*.spec
 *.xls
 *.7z
 

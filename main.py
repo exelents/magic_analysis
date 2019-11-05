@@ -1,4 +1,5 @@
-
+import warnings
+warnings.filterwarnings(action="ignore", category=Warning)
 
 import os
 import datetime
@@ -11,7 +12,7 @@ import helpers as h
 import analysis as a
 
 
-date_trial = datetime.date(2019, 11, 30)
+date_trial = datetime.date(2019, 12, 31)
 if datetime.date.today() > date_trial:
     quit()
 
@@ -145,7 +146,7 @@ def process_samples(dir_input:str, func, **kwargs):
     print(f"Обработка папки {indirname} => [{dir_input}]")
 
     data1 = h.load_dataframe_from_folder(dir_input)
-
+    
     if data1 is not None and len(data1) > 0 :
         # TODO  анализ данных
         results = func(data1, **kwargs)
@@ -175,8 +176,6 @@ def process_samples(dir_input:str, func, **kwargs):
 
 if __name__ == '__main__':
     import pyfiglet
-    import warnings
-    warnings.filterwarnings("ignore")
 
     ascii_banner = pyfiglet.figlet_format("   MAGIC\nanalysis")
     # ascii___

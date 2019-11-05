@@ -262,7 +262,7 @@ def print_report(report, filename):
 
 def get_new_filename(dir=None):
     filename = datetime.datetime.today().\
-                   strftime("%Y-%m-%d.%H:%M:%S") + \
+                   strftime("%Y-%m-%d.%H.%M.%S") + \
                     f".{random.randint(0, 99999)}.png"
 
     if dir is not None:
@@ -287,7 +287,7 @@ def load_dataframe_from_folder(dir):
         try:
             df_orig = read_ods(in_filepath, p.sheet_name)
             df = df_orig[df_orig[p.n_objtype].isin(p.n_objects_to_analysis)]
-
+            
             # проверка данных на логическую структуру
             currow = None
             max_nucleori = 0
@@ -370,8 +370,8 @@ def load_dataframe_from_folder(dir):
             # df_orig.index = df_orig.index+2
             # df_orig.to_excel(outerr_filename, sheet_name=p.sheet_name)
             # #====
-            # df[p.n_value] = df[p.n_value].astype('float64')
-            # data.append(df)
+            df[p.n_value] = df[p.n_value].astype('float64')
+            data.append(df)
         except ValueError as ex:
             print("ВНИМАНИЕ! Ошибка при обработке файла! "
                   "В значениях содержатся нечисловые значения!")
@@ -384,7 +384,7 @@ def load_dataframe_from_folder(dir):
             raise
             quit(1)
 
-
+    
     if len(data) > 0:
         return pd.concat(data)
     else:
