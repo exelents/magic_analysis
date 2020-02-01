@@ -1,3 +1,22 @@
+'''
+    This file is part of Magic Analysis.
+
+    Magic Analysis is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Magic Analysis is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Magic Analysis.  If not, see <https://www.gnu.org/licenses/>.
+'''
+
+
+
 import warnings
 warnings.filterwarnings(action="ignore", category=Warning)
 
@@ -53,7 +72,7 @@ def process_input(dir_input:str):
     rd = []
     for d in dirs:
         check_dir = os.path.join(dir_input, d)
-        data = process_samples(check_dir, a.analyze_data_normality)
+        data = process_samples(check_dir, a.analyze_data_normality, check_errors=True)
         print("\n")
         rd.append({
             'sample': d,
@@ -91,7 +110,7 @@ def process_input(dir_input:str):
             data = process_samples_pair(check_dir1, check_dir2,
                                         a.analyze_data_compare,
                                         normal_samples_paths=normal_samples_paths,
-                                        sample1=d1, sample2=d2)
+                                        sample1=d1, sample2=d2, check_errors=False)
             rd.append({
                 'sample1': d1,
                 'sample2': d2,
@@ -106,8 +125,9 @@ def process_samples_pair(dir_input_1:str, dir_input_2:str, func, **kwargs):
     indirname = os.path.split(dir_input_1)[-1]
     print(f"Обработка папки {indirname} => [{dir_input_1}] [{dir_input_2}]")
 
-    data1 = h.load_dataframe_from_folder(dir_input_1)
-    data2 = h.load_dataframe_from_folder(dir_input_2)
+    check_errors = True if 'check_errors' not in kwargs.keys() else kwargs['check_errors']
+    data1 = h.load_dataframe_from_folder(dir_input_1, check_errors=check_errors)
+    data2 = h.load_dataframe_from_folder(dir_input_2, check_errors=check_errors)
 
     if data1 is not None and data2 is not None and \
             len(data1) > 0 and len(data2) > 0:
@@ -145,7 +165,8 @@ def process_samples(dir_input:str, func, **kwargs):
     indirname = os.path.split(dir_input)[-1]
     print(f"Обработка папки {indirname} => [{dir_input}]")
 
-    data1 = h.load_dataframe_from_folder(dir_input)
+    check_errors = True if 'check_errors' not in kwargs.keys() else kwargs['check_errors']
+    data1 = h.load_dataframe_from_folder(dir_input, check_errors=check_errors)
     
     if data1 is not None and len(data1) > 0 :
         # TODO  анализ данных

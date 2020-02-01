@@ -1,3 +1,20 @@
+'''
+    This file is part of Magic Analysis.
+
+    Magic Analysis is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Magic Analysis is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Magic Analysis.  If not, see <https://www.gnu.org/licenses/>.
+'''
+
 import random
 import datetime
 import os
@@ -260,21 +277,24 @@ def print_report(report, filename):
     doc.save(filename)  # Save document
 
 
-def get_new_filename(dir=None):
+def get_new_filename(in_dir=None):
     filename = datetime.datetime.today().\
                    strftime("%Y-%m-%d.%H.%M.%S") + \
                     f".{random.randint(0, 99999)}.png"
 
-    if dir is not None:
-        filename = os.path.join(dir, filename)
+    if in_dir is not None:
+        filename = os.path.join(in_dir, filename)
 
     return filename
 
-def load_dataframe_from_folder(dir):
-    data = []
 
-    for in_file in os.listdir(dir):
-        in_filepath = os.path.join(dir, in_file)
+def load_dataframe_from_folder(in_dir, check_errors=False):
+    data = []
+    history_results_total = []
+
+    for in_file in os.listdir(in_dir):
+        result_for_history = {"in_file": in_file}
+        in_filepath = os.path.join(in_dir, in_file)
         if os.path.isdir(in_filepath):
             continue
 
@@ -286,7 +306,10 @@ def load_dataframe_from_folder(dir):
 
         try:
             df_orig = read_ods(in_filepath, p.sheet_name)
+            result_for_history['df_orig'] = df_orig
             df = df_orig[df_orig[p.n_objtype].isin(p.n_objects_to_analysis)]
+            df['index_bak'] = df.index
+            df['in_file_bak'] = in_file
             
             # проверка данных на логическую структуру
             currow = None
@@ -343,35 +366,12 @@ def load_dataframe_from_folder(dir):
                     if max_nucleori < curr_nucleori:
                         max_nucleori = curr_nucleori
 
-            # # ====
-            # # проверка данных на выбросы
-            #
-            # df_orig['chauvenet'] = ''
-            # for obj in p.n_objects_to_analysis:
-            #     df_err = df_orig[df_orig[p.n_objtype] == obj]
-            #     data_err = pd.to_numeric(df_err[p.n_value], errors='raise')
-            #     testres = a.chauvenet(data_err)
-            #     df_orig.loc[testres[testres==True].index, 'chauvenet'] = 'F'
-            #
-            # # выставим значения ошибки структуры
-            # df_orig['data_structure'] = ''
-            # df_orig.loc[error_idx['nan'], 'data_structure'] = 'НЕ ЧИСЛО'
-            # df_orig.loc[error_idx['no_nucleos'], 'data_structure'] += 'нет ядра'
-            # df_orig.loc[error_idx['no_nucleori'], 'data_structure'] += 'нет ядрышек'
-            # df_orig.loc[error_idx['additional_nucleos'], 'data_structure'] += 'лишнее ядро'
-            #
-            # #====
-            # # сохранить подсвеченые данные
-            # outerr_filepath = os.path.relpath(dir)
-            # outerr_filepath = os.path.join(p.p_data_highlights, outerr_filepath)
-            # os.makedirs(outerr_filepath, exist_ok=True)
-            # outerr_filename = os.path.splitext(in_file)[0] + '.xls'
-            # outerr_filename = os.path.join(outerr_filepath, outerr_filename)
-            # df_orig.index = df_orig.index+2
-            # df_orig.to_excel(outerr_filename, sheet_name=p.sheet_name)
-            # #====
+            #======
+            result_for_history['error_idx'] = error_idx
             df[p.n_value] = df[p.n_value].astype('float64')
             data.append(df)
+            if check_errors:
+                history_results_total.append(result_for_history)
         except ValueError as ex:
             print("ВНИМАНИЕ! Ошибка при обработке файла! "
                   "В значениях содержатся нечисловые значения!")
@@ -384,11 +384,67 @@ def load_dataframe_from_folder(dir):
             raise
             quit(1)
 
-    
     if len(data) > 0:
-        return pd.concat(data)
+        data = pd.concat(data)
     else:
         return None
+    # =========
+    # проверка на выбросы и выгрузка ошибок по данным
+    # ====
+    # проверка данных на выбросы
+
+    if check_errors:
+        data['chauvenet'] = ''
+        data = data.reset_index(drop=True)
+        for obj in p.n_objects_to_analysis:
+            df_err = data[data[p.n_objtype] == obj]
+            data_err = pd.to_numeric(df_err[p.n_value], errors='raise')
+            testres = a.chauvenet(data_err)
+            data.loc[testres[testres==True].index, 'chauvenet'] = 'F'
+
+        for page in history_results_total:
+            # выставим значения ошибки структуры
+            df_orig = page['df_orig']
+            in_file = page['in_file']
+            error_idx = page['error_idx']
+            df_orig['chauvenet'] = ''
+
+            # маркеры теста шовенье
+            for obj in p.n_objects_to_analysis:
+                df_chav_res = data[(data['in_file_bak'] == in_file)
+                                   & (data[p.n_objtype] == obj)
+                                   & (data['chauvenet'] == 'F')]
+                df_orig.loc[df_chav_res['index_bak'], 'chauvenet'] = 'F'
+
+            # маркеры структуры данных
+            df_orig['data_structure'] = ''
+            df_orig.loc[error_idx['nan'], 'data_structure'] = 'НЕ ЧИСЛО'
+            df_orig.loc[error_idx['no_nucleos'], 'data_structure'] += 'нет ядра'
+            df_orig.loc[error_idx['no_nucleori'], 'data_structure'] += 'нет ядрышек'
+            df_orig.loc[error_idx['additional_nucleos'], 'data_structure'] += 'лишнее ядро'
+
+            #====
+            # сохранить подсвеченые данные
+            outerr_filepath = os.path.relpath(in_dir)
+            outerr_filepath = os.path.join(p.p_data_highlights, outerr_filepath)
+            os.makedirs(outerr_filepath, exist_ok=True)
+            outerr_filename = os.path.splitext(in_file)[0] + '.xls'
+            outerr_filename = os.path.join(outerr_filepath, outerr_filename)
+
+            df_orig.index = df_orig.index+2
+            def roundall(x):
+                try:
+                    return np.round(x, p.i_rounddig)
+                except TypeError:
+                    return x
+            df_orig[p.n_value] = df_orig[p.n_value].apply(roundall)
+            df_orig.to_excel(outerr_filename, sheet_name=p.sheet_name)
+            #====
+
+
+    # =========
+
+    return data
 
 
 def compare_dirs_structure(dir1, dir2):
